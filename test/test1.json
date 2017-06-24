@@ -1,0 +1,14 @@
+{
+    "name" : "Zhangsan", 
+    "type" : "man",
+    "education" : {
+        "highSchool": "THU-highSchool",
+        "university": "XJTU"
+    },
+    "look": {
+        "height"     : 175, 
+        "weight"     : 65, 
+        "hair"       : "black",
+        "hasGlasses" : true 
+    }
+}

@@ -1,4 +1,8 @@
-## jsonlib
-    A json library in C.
+# jsonlib
+## Introduction:
+    A json library in C .
 ## Usage:
-    To be done.
+    #include "jsonlib.h" .
+    Enjoy it!
+## Example:
+    run ./build.sh .
