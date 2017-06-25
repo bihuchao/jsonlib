@@ -32,5 +32,6 @@ JSON *ParseFromStr(const char *str);
 JSON *ParseFromFile(const char *filename);
 void PrintJSON(JSON *j);
 void FreeJSON(JSON *j);
+void ShowWheatherMemoryLeak();
 
 #endif

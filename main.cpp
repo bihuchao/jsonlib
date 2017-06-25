@@ -20,5 +20,7 @@ int main()
         FreeJSON(example);
     }
 
+    ShowWheatherMemoryLeak();
+
     return 0;
 }

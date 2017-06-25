@@ -5,6 +5,10 @@
 #include "exception.h"
 #include "jsonlib.h"
 
+// debug for memory leak
+int malloc_num = 0;
+int free_num = 0;
+
 // static
 static char *ReadStrFromFile(const char *filename);
 static const char *Skip(const char *str);
@@ -54,6 +58,7 @@ static char *ReadStrFromFile(const char *filename){
         fclose(fp);
         RaiseError("ReadStrFromFile", "String malloc fail!");
     }
+    malloc_num+=(len+1);
     for(int i=0; i<len; i++)
         fread(str+i, 1, 1, fp);
     str[len] = '\0';
@@ -211,6 +216,7 @@ static const char *ParseString(JSON *j, const char *str){
     if( (result=(char*)malloc(len+1)) == nullptr){
         RaiseError("ParseString", "Result malloc fail !");
     }
+    malloc_num += (len+1);
     temp = str+1;
     char *temp2 = result;
     while (*temp!='\"' && *temp){
@@ -426,7 +432,9 @@ JSON *ParseFromFile(const char *filename){
     char *str = ReadStrFromFile(filename);
     JSON *j = ParseFromStr(str);
 
+    free_num+=(strlen(str)+1);
     free(str);
+
 
     return j;
 }
@@ -446,6 +454,7 @@ JSON *JSON_New(){
     if( (j=(JSON*)malloc(sizeof(JSON))) == nullptr){
         RaiseError("JSON_New", "JSON malloc fail");
     }
+    malloc_num += sizeof(JSON);
     memset(j, 0, sizeof(JSON));
 
     return j;
@@ -455,11 +464,14 @@ JSON *JSON_New(){
 void JSON_Delete(JSON *j){
     if(j){
         if(j->stringValue){
+            free_num+=(strlen(j->stringValue)+1);
             free(j->stringValue);
         }
         if(j->objectName){
+            free_num+=(strlen(j->objectName)+1);
             free(j->objectName);
         }
+        free_num+=sizeof(JSON);
         free(j);
 
     }
@@ -503,3 +515,9 @@ void FreeJSON(JSON *j){
         JSON_Delete(j);
     }
 }
+
+// show wheather have memory leak
+void ShowWheatherMemoryLeak(){
+    printf("Malloc: %d\nFree  : %d\nisOK: %s\n", malloc_num, free_num, (malloc_num==free_num)?"Yes":"No");
+}
+
