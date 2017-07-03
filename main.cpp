@@ -14,7 +14,7 @@ int main()
     // parse from file
     for(int i=1; i<=6; i++){
         char filename[30];
-        sprintf(filename, "test/test%d.json", i);
+        sprintf(filename, "../test/test%d.json", i);
         JSON *example = ParseFromFile(filename);
         PrintJSON(example);
         FreeJSON(example);

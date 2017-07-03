@@ -5,4 +5,7 @@
     #include "jsonlib.h" .
     Enjoy it!
 ## Example:
-    run ./build.sh .
+    mkdir build && cd build
+    cmake ../
+    make
+    ./jsonlib.exe
