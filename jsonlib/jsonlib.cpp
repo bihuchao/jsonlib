@@ -290,7 +290,7 @@ static const char *ParseNumber(JSON *j, const char *str){
 
     if(hasDot){
         j->type = JSON_DOUBLE;
-        j->doubleValue=integerPart+pow(10, -decimalDigits)*decimalPart;
+        j->doubleValue=integerPart+pow(10., -decimalDigits)*decimalPart;
         j->doubleValue *= sign;
     }
     else{

@@ -1,6 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
-project(jsonlib)
+cmake_minimum_required(VERSION 3.11)
 
-set(CMAKE_CXX_STANDARD 11)
-
-add_executable(jsonlib main.cpp jsonlib.cpp exception.cpp)
+ADD_SUBDIRECTORY(jsonlib)
+ADD_SUBDIRECTORY(jsonlib_test)
