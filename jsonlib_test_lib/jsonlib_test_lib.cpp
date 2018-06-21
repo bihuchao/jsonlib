@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <cstring>
-#include "jsonlib.h"
-#include "exception.h"
+#include "jsonlib_lib.h"
 
 int main()
 {

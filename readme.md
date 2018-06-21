@@ -5,10 +5,18 @@
 [jsonlib](http://github.com/bihuchao/jsonlib ) is simpy library in C for people to use json in C language.
     
 ## Usage:
-To use this library in your C project, just add simply include statement in front of your code and link generated lib file to your project.
+### Static Link Library
+To use this static link library in your project, just add simply include statement in front of your code and link generated **lib** file to your project.
 
 ```C++
-#include "jsonlib.h" 
+#include "jsonlib_lib.h"
+```
+
+### Dynamic Link Library
+For dynamic link library, you should add another include statement in front of your code and place generated **dll** file to your project.
+
+```C++
+#include "jsonlib_dll.h"
 ```
 
 Just enjoy it!

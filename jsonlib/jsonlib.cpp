@@ -3,7 +3,7 @@
 #include <cstring>
 #include <cmath>
 #include "exception.h"
-#include "jsonlib.h"
+#include "jsonlib_lib.h"
 
 // debug for memory leak
 int malloc_num = 0;
