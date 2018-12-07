@@ -28,7 +28,7 @@ To test with examples in ./test_jsons/, you can run:
 mkdir build && cd build
 cmake ../ -G "{your_prefer_compiler}"
 make
-./{path_to_exe}.exe
+./{path_to_executor}
 ```
 
 ## Bug
