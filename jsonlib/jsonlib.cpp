@@ -1,168 +1,167 @@
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <cmath>
-#include "exception.h"
-#include "jsonlib_lib.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#include "logging.h"
+#include "jsonlib.h"
+
+namespace jsonlib {
 
 // debug for memory leak
 int malloc_num = 0;
 int free_num = 0;
 
 // static
-static char *ReadStrFromFile(const char *filename);
-static const char *Skip(const char *str);
-static const char *ParseObject(JSON *j, const char *str);
-static const char *ParseValue(JSON *j, const char *str);
-static const char *ParseString(JSON *j, const char *str);
-static const char *ParseNumber(JSON *j, const char *str);
-static const char *ParseArray(JSON *j, const char *str);
+static char* ReadStrFromFile(const char* filename);
+static const char* Skip(const char* str);
+static const char* ParseObject(JSON* j, const char* str);
+static const char* ParseValue(JSON* j, const char* str);
+static const char* ParseString(JSON* j, const char* str);
+static const char* ParseNumber(JSON* j, const char* str);
+static const char* ParseArray(JSON* j, const char* str);
 static void PrintIndent(int n, int level);
-static void PrintJSONSub(JSON *j, int level);
+static void PrintJSONSub(JSON* j, int level);
 
 // static variables
-static const char *JSON_TYPE_NAME[] = {
-        "NULL",
-        "BOOLEAN",
-        "INT",
-        "DOUBLE",
-        "STRING",
-        "ARRAY",
-        "OBJECT"
+static const char* JSON_TYPE_NAME[] = {
+    "NULL",
+    "BOOLEAN",
+    "INT",
+    "DOUBLE",
+    "STRING",
+    "ARRAY",
+    "OBJECT"
 };
 
 // static function
 // read string from file
-static char *ReadStrFromFile(const char *filename){
-    if(filename==nullptr || *filename=='\0')
-        RaiseError("ReadStrFromFile", "Filename can't be null");
-
-    FILE *fp = nullptr;
-
-    if( (fp = fopen(filename, "r")) == nullptr){
-        char message[20];
+static char* ReadStrFromFile(const char* filename) {
+    if (filename==nullptr || *filename=='\0') {
+        LOG_FATAL("Filename can't be null");
+    }
+    FILE* fp = nullptr;
+    if ((fp = fopen(filename, "r")) == nullptr) {
+        char message[20] = {'\0'};
         sprintf(message, "File %s open fail!", filename);
-        RaiseError("ReadStrFromFile", message);
+        LOG_FATAL(message);
     }
-
-    int len=0;
+    int len = 0;
     char temp;
-    while( fread(&temp, 1, 1, fp) )
-        len++;
-
-    rewind(fp);
-
-
-    char *str=nullptr;
-    if((str = (char *)malloc(sizeof(char)*(len+1))) == nullptr) {
-        fclose(fp);
-        RaiseError("ReadStrFromFile", "String malloc fail!");
+    while (fread(&temp, 1, 1, fp)) {
+        ++len;
     }
-    malloc_num+=(len+1);
-    for(int i=0; i<len; i++)
+    rewind(fp);
+    char* str = nullptr;
+    if ((str = (char *)malloc(sizeof(char) * (len + 1))) == nullptr) {
+        fclose(fp);
+        LOG_FATAL("String malloc fail!");
+    }
+    malloc_num += (len + 1);
+    for(int i = 0; i < len; ++i) {
         fread(str+i, 1, 1, fp);
+    }
     str[len] = '\0';
-
     fclose(fp);
-
     return str;
 }
 
 // print indent
-static void PrintIndent(int n, int level){
-    for(int i=0; i<n*level; i++)
+static void PrintIndent(int n, int level) {
+    for(int i = 0; i< n * level; ++i) {
         printf(" ");
+    }
 }
 
 // skip control symbol in ASCII ( [0, 32] and 127)
-static const char *Skip(const char *str) {
-    if (str == nullptr){
-        RaiseWarning("Skip", "Input string is nullptr");
+static const char* Skip(const char* str) {
+    if (str == nullptr) {
+        LOG_WARNING("Input string is nullptr");
         return nullptr;
     }
-    while (*str && ((unsigned char)*str<=32 || (unsigned char)*str==127))
+    while (*str && ((unsigned char)*str <= 32 || (unsigned char)(*str) == 127)) {
         str++;
+    }
     return str;
 }
 
 // parse driver : all type
-static const char *ParseValue(JSON *j, const char *str){
-    if(!str){
-        RaiseWarning("ParseValue", "Input string is nullptr");
+static const char* ParseValue(JSON* j, const char* str) {
+    if (!str) {
+        LOG_WARNING("Input string is nullptr");
         return nullptr;
     }
-    if(!j){
-        RaiseWarning("ParseValue", "Input json is nullptr");
+    if (!j) {
+        LOG_WARNING("Input json is nullptr");
         return str;
     }
     str = Skip(str);
-    if(!strncmp(str, "null", 4)){
-        j->type=JSON_NULL;
-        return str+4;
+    if (!strncmp(str, "null", 4)) {
+        j->type = JSON_NULL;
+        return str + 4;
     }
-    if(!strncmp(str,"false",5)){
-        j->type=JSON_BOOLEAN;
+    if (!strncmp(str, "false", 5)) {
+        j->type = JSON_BOOLEAN;
         j->boolValue = false;
-        return str+5;
+        return str + 5;
     }
-    if(!strncmp(str,"true",4)){
-        j->type=JSON_BOOLEAN;
+    if (!strncmp(str, "true", 4)) {
+        j->type = JSON_BOOLEAN;
         j->boolValue = true;
-        return str+4;
+        return str + 4;
     }
-    if(*str=='\"'){
+    if (*str == '\"') {
         return ParseString(j, str);
     }
-    if((*str>='0' && *str<='9') || (*str == '-') || (*str == '.')){
+    if ((*str >= '0' && *str <= '9') || (*str == '-') || (*str == '.')) {
         return ParseNumber(j, str);
     }
-    if(*str=='['){
+    if (*str == '[') {
         return ParseArray(j, str);
     }
-    if(*str=='{'){
+    if (*str == '{') {
         return ParseObject(j, str);
     }
-
     return str;
 }
 
 // parse object
-static const char *ParseObject(JSON *j, const char *str){
-    if(!str){
-        RaiseWarning("ParseObject", "Input string is nullptr");
+static const char* ParseObject(JSON* j, const char* str) {
+    if (!str) {
+        LOG_WARNING("Input string is nullptr");
         return nullptr;
     }
-    if(!j){
-        RaiseWarning("ParseObject", "Input json is nullptr");
+    if (!j) {
+        LOG_WARNING("Input json is nullptr");
         return str;
     }
 
     str = Skip(str);
-    j->type=JSON_OBJECT;
-    if(*str != '{'){
-        RaiseError("ParseObject", "Illegal string -> not start with { !");
+    j->type = JSON_OBJECT;
+    if (*str != '{') {
+        LOG_FATAL("Illegal string -> not start with { !");
     }
-    str=Skip(str+1);
+    str = Skip(str + 1);
 
 
     bool isFirst = true;
-    while(true){
-        if(*str == '\0')
-            RaiseError("ParseObject", "Illegal string -> occur \\0 brfore } !");
-        else if(*str == '}'){
-            if(isFirst)
+    while (true) {
+        if (*str == '\0') {
+            LOG_FATAL("Illegal string -> occur \\0 brfore } !");
+        } else if (*str == '}') {
+            if (isFirst) {
                 j->objectPointer = nullptr;
-            else
+            } else {
                 j->next = nullptr;
+            }
             break;
-        }
-        else if(*str == '\"'){
-            if(isFirst){
+        } else if (*str == '\"') {
+            if (isFirst) {
                 isFirst = false;
                 j->objectPointer = JSON_New();
                 j = j->objectPointer;
             }
-            else{
+            else {
                 j->next = JSON_New();
                 j = j->next;
             }
@@ -171,61 +170,60 @@ static const char *ParseObject(JSON *j, const char *str){
             str = Skip(ParseString(j, Skip(str)));
             j->objectName = j->stringValue;
             j->stringValue = nullptr;
-            if(*str != ':'){
-                RaiseError("ParseObject", "Illegal string -> do not have : !");
+            if (*str != ':') {
+                LOG_FATAL("Illegal string -> do not have : !");
             }
-            else
-                str = Skip(str+1);
+            else {
+                str = Skip(str + 1);
+            }
             // parse value
             str = Skip(ParseValue(j, Skip(str)));
+        } else if (*str == ',' && !isFirst) {
+            str = Skip(str + 1);
+        } else {
+            LOG_FATAL("Illegal string -> other mistakes !");
         }
-        else if(*str == ',' && !isFirst)
-            str = Skip(str+1);
-        else
-            RaiseError("ParseObject", "Illegal string -> other mistakes !");
     }
 
-    return str+1;
+    return str + 1;
 }
 
 // parse string
-static const char *ParseString(JSON *j, const char *str){
-    if(!str){
-        RaiseWarning("ParseString", "Input string is nullptr");
+static const char* ParseString(JSON* j, const char* str) {
+    if (!str) {
+        LOG_WARNING("Input string is nullptr");
         return nullptr;
     }
-    if(!j){
-        RaiseWarning("ParseString", "Input json is nullptr");
+    if (!j) {
+        LOG_WARNING("Input json is nullptr");
         return str;
     }
     str = Skip(str);
-    if(*str != '\"'){
-        RaiseError("ParseString", "Illegal string -> not start with \" !");
+    if (*str != '\"') {
+        LOG_FATAL("Illegal string -> not start with \" !");
     }
-
-    int len=0;
-    const char *temp=str+1;
-    while(*temp!='\"'){
-        if(*temp == '\0')
-            RaiseError("ParseString", "Illegal string -> occur \\0 before \"  !");
-        len++;
-        temp++;
+    int len = 0;
+    const char* temp = str + 1;
+    while (*temp != '\"') {
+        if (*temp == '\0') {
+            LOG_FATAL("Illegal string -> occur \\0 before \"  !");
+        }
+        ++len;
+        ++temp;
     }
-    char *result = nullptr;
-
-    if( (result=(char*)malloc(len+1)) == nullptr){
-        RaiseError("ParseString", "Result malloc fail !");
+    char* result = nullptr;
+    if ( (result = (char*)malloc(len + 1)) == nullptr) {
+        LOG_FATAL("Result malloc fail !");
     }
-    malloc_num += (len+1);
-    temp = str+1;
-    char *temp2 = result;
-    while (*temp!='\"' && *temp){
-
-        *temp2++=*temp++;
+    malloc_num += (len + 1);
+    temp = str + 1;
+    char* temp2 = result;
+    while (*temp != '\"' && *temp) {
+        *temp2++ = *temp++;
     }
-    *temp2='\0';
+    *temp2 = '\0';
 
-    temp++;
+    ++temp;
     j->type = JSON_STRING;
     j->stringValue = result;
 
@@ -233,169 +231,157 @@ static const char *ParseString(JSON *j, const char *str){
 }
 
 // parse number
-static const char *ParseNumber(JSON *j, const char *str){
-    if(!str){
-        RaiseWarning("ParseNumber", "Input string is nullptr");
+static const char *ParseNumber(JSON* j, const char* str) {
+    if (!str) {
+        LOG_WARNING("Input string is nullptr");
         return nullptr;
     }
-    if(!j){
-        RaiseWarning("ParseNumber", "Input json is nullptr");
+    if (!j) {
+        LOG_WARNING("Input json is nullptr");
         return str;
     }
-    str=Skip(str);
-    if(*str>='0' && *str<='9' || *str=='-' || *str=='.')
+    str = Skip(str);
+    if (*str >= '0' && *str <= '9' || *str == '-' || *str == '.') {
         ;
-    else
-        RaiseError("ParseNumber", "Illegal string -> start with wrong !");
+    } else {
+        LOG_FATAL("Illegal string -> start with wrong !");
+    }
 
     // judge +/-
     int sign = 1;
-    if(*str == '-'){
+    if (*str == '-') {
         sign = -1;
-        str++;
+        ++str;
     }
     // judge number
     int integerPart = 0, decimalPart = 0, decimalDigits=0;
     bool onlyHasDot = true;
     bool hasDot = false;
-    while(true){
-        if(!hasDot){
-            if(*str<='9' && *str >='0'){
-                integerPart = integerPart*10+(*str-'0');
+    while (true) {
+        if (!hasDot) {
+            if (*str <= '9' && *str >='0') {
+                integerPart = integerPart * 10 + (*str - '0');
                 onlyHasDot = false;
-            }
-            else if(*str == '.')
+            } else if (*str == '.') {
                 hasDot = true;
-            else{
-                if(onlyHasDot)
-                    RaiseError("ParseNumber", "Illegal string ->  only have - !");
+            } else {
+                if (onlyHasDot) {
+                    LOG_FATAL("Illegal string ->  only have - !");
+                }
                 break;
             }
-            str++;
-        }
-        else{
-            if(*str<='9' && *str >='0'){
-                decimalPart = decimalPart*10+(*str-'0');
-                decimalDigits++;
+            ++str;
+        } else {
+            if (*str <= '9' && *str >= '0') {
+                decimalPart = decimalPart * 10 + (*str - '0');
+                ++decimalDigits;
                 onlyHasDot = false;
-            }
-            else{
-                if(onlyHasDot)
-                    RaiseError("ParseNumber", "Illegal string ->  segment only has dot !"); // 只有点
+            } else {
+                if (onlyHasDot) {
+                    LOG_FATAL("Illegal string ->  segment only has dot !"); // 只有点
+                }
                 break;
             }
-            str++;
+            ++str;
         }
     }
 
-    if(hasDot){
+    if (hasDot) {
         j->type = JSON_DOUBLE;
         j->doubleValue=integerPart+pow(10., -decimalDigits)*decimalPart;
         j->doubleValue *= sign;
-    }
-    else{
+    } else {
         j->type = JSON_INT;
         j->intValue=integerPart;
         j->intValue *= sign;
     }
-
     return str;
 }
 
 // parse array
-static const char *ParseArray(JSON *j, const char *str){
-    if(!str){
-        RaiseWarning("ParseArray", "Input string is nullptr");
+static const char* ParseArray(JSON* j, const char* str) {
+    if (!str) {
+        LOG_WARNING("Input string is nullptr");
         return nullptr;
     }
-    if(!j){
-        RaiseWarning("ParseArray", "Input json is nullptr");
+    if (!j) {
+        LOG_WARNING("Input json is nullptr");
         return str;
     }
+    str = Skip(str);
+    if (*str != '[') {
+        LOG_FATAL("Illegal string ->  start wrong !");
+    }
 
-
-    str=Skip(str);
-    if(*str != '[')
-        RaiseError("ParseArray", "Illegal string ->  start wrong !");
-
-    str=Skip(str+1);
-    j->type=JSON_ARRAY;
-
+    str = Skip(str + 1);
+    j->type = JSON_ARRAY;
 
     bool isFirst = true;
     bool isComma = false;
 
-    while(true){
-        if(*str == '\0'){
-            RaiseError("ParseArray", "Illegal string -> format wrong !");
-        }
-        else if(*str == ']'){
-            if(isFirst)
+    while (true) {
+        if (*str == '\0') {
+            LOG_FATAL("Illegal string -> format wrong !");
+        } else if (*str == ']') {
+            if (isFirst) {
                 j->arrayPointer = nullptr;
-            else
+            } else{
                 j->next = nullptr;
-            break;
-        }
-        else if(*str == ','){
-            if(!isFirst && !isComma){
-                isComma = true;
-                str++;
             }
-            else
-                RaiseError("ParseArray", "Illegal string -> , !");// 连续两个逗号 或者第一个就是逗号
-        }
-        else{
-            if(isFirst){
+            break;
+        } else if (*str == ',') {
+            if (!isFirst && !isComma) {
+                isComma = true;
+                ++str;
+            }
+            else {
+                LOG_FATAL("Illegal string -> , !");// 连续两个逗号 或者第一个就是逗号
+            }
+        } else {
+            if (isFirst) {
                 j->arrayPointer = JSON_New();
                 j = j->arrayPointer;
                 isFirst = false;
-            }
-            else{
+            } else {
                 j->next = JSON_New();
                 j = j->next;
                 isComma = false;
             }
-            str=Skip( ParseValue(j, Skip(str)) );
+            str = Skip(ParseValue(j, Skip(str)));
         }
     }
-    return str+1;
+    return str + 1;
 }
 
 // sub function of print json
-static void PrintJSONSub(JSON *j, int level){
-    if(j->type == JSON_NULL){
-        printf("NULL%s\n", j->next?",":"");
-    }
-    else if(j->type == JSON_BOOLEAN){
-        printf("%s%s\n", j->boolValue?"true":"false", j->next?",":"");
-    }
-    else if(j->type == JSON_INT){
-        printf("%d%s\n", j->intValue, j->next?",":"");
-    }
-    else if(j->type == JSON_DOUBLE){
-        printf("%lf%s\n", j->doubleValue, j->next?",":"");
-    }
-    else if(j->type == JSON_STRING){
-        printf("\"%s\"%s\n", j->stringValue, j->next?",":"");
-    }
-    else if(j->type == JSON_ARRAY){
+static void PrintJSONSub(JSON* j, int level) {
+    if (j->type == JSON_NULL) {
+        printf("NULL%s\n", j->next ? "," : "");
+    } else if (j->type == JSON_BOOLEAN) {
+        printf("%s%s\n", j->boolValue ? "true" : "false", j->next ? "," : "");
+    } else if (j->type == JSON_INT) {
+        printf("%d%s\n", j->intValue, j->next ? "," : "");
+    } else if (j->type == JSON_DOUBLE) {
+        printf("%lf%s\n", j->doubleValue, j->next ? "," : "");
+    } else if (j->type == JSON_STRING) {
+        printf("\"%s\"%s\n", j->stringValue, j->next ? "," : "");
+    } else if (j->type == JSON_ARRAY) {
         printf("[\n");
         j = j->arrayPointer;
-        while(j){
+        while (j) {
             PrintIndent(4, level);
-            PrintJSONSub(j, level+1);
+            PrintJSONSub(j, level + 1);
             j = j->next;
         }
-        PrintIndent(4, level-1);
+        PrintIndent(4, level - 1);
         printf("]\n");
-    }
-    else if(j->type == JSON_OBJECT){
+    } else if (j->type == JSON_OBJECT) {
         printf("{\n");
         j = j->objectPointer;
-        while(j){
+        while (j) {
             PrintIndent(4, level);
             printf("\"%s\" : ", j->objectName);
-            PrintJSONSub(j, level+1);
+            PrintJSONSub(j, level + 1);
             j = j->next;
         }
         PrintIndent(4, level-1);
@@ -405,54 +391,52 @@ static void PrintJSONSub(JSON *j, int level){
 
 // extern function
 // parse json object from string
-JSON *ParseFromStr(const char *str){
-    if(str == nullptr){
-        RaiseWarning("ParseFromStr", "Input string is nullptr !");
+JSON* ParseFromStr(const char* str) {
+    if (!str) {
+        LOG_WARNING("Input string is nullptr !");
         return nullptr;
     }
     str = Skip(str);
-    if(*str == '\0')
-        return nullptr;
+    if (*str == '\0') { return nullptr; }
 
-    if(*str == '{'){
-        JSON *j = JSON_New();
+    if (*str == '{') {
+        JSON* j = JSON_New();
         str = ParseObject(j, str);
         str = Skip(str);
-        if(*str != '\0')
-            RaiseError("ParseFromStr", "The string is not end!");
+        if (*str != '\0') {
+            LOG_FATAL("The string is not end!");
+        }
         return j;
+    } else {
+        LOG_FATAL("The first char is not { !");
     }
-    else{
-        RaiseError("ParseFromStr", "The first char is not { !");
-    }
+    return nullptr;
 }
 
 // parse json object from file
-JSON *ParseFromFile(const char *filename){
-    char *str = ReadStrFromFile(filename);
-    JSON *j = ParseFromStr(str);
+JSON* ParseFromFile(const char* filename) {
+    char* str = ReadStrFromFile(filename);
+    JSON* j = ParseFromStr(str);
 
-    free_num+=(strlen(str)+1);
+    free_num += (strlen(str) + 1);
     free(str);
-
 
     return j;
 }
 
 // print json object
-void PrintJSON(JSON *j){
-    if(j == nullptr)
-        RaiseWarning("GetJSONType", "Input json is nullptr !");
+void PrintJSON(JSON* j) {
+    if (!j) {
+        LOG_WARNING("Input json is nullptr !");
+    }
     PrintJSONSub(j, 1);
-
-    return ;
 }
 
 // constructor
-JSON *JSON_New(){
+JSON* JSON_New() {
     JSON* j = nullptr;
-    if( (j=(JSON*)malloc(sizeof(JSON))) == nullptr){
-        RaiseError("JSON_New", "JSON malloc fail");
+    if ((j = (JSON*)malloc(sizeof(JSON))) == nullptr) {
+        LOG_FATAL("JSON malloc fail");
     }
     malloc_num += sizeof(JSON);
     memset(j, 0, sizeof(JSON));
@@ -461,63 +445,62 @@ JSON *JSON_New(){
 }
 
 // destructor
-void JSON_Delete(JSON *j){
-    if(j){
-        if(j->stringValue){
-            free_num+=(strlen(j->stringValue)+1);
+void JSON_Delete(JSON* j) {
+    if (j) {
+        if (j->stringValue) {
+            free_num += (strlen(j->stringValue) + 1);
             free(j->stringValue);
         }
-        if(j->objectName){
-            free_num+=(strlen(j->objectName)+1);
+        if (j->objectName) {
+            free_num += (strlen(j->objectName) + 1);
             free(j->objectName);
         }
-        free_num+=sizeof(JSON);
+        free_num += sizeof(JSON);
         free(j);
-
     }
 }
 
 // get json node type
-const char *JSON_GetType(JSON *j){
-    if(j == nullptr)
-        RaiseWarning("GetJSONType", "Input json is nullptr !");
+const char* JSON_GetType(JSON* j) {
+    if (j == nullptr) {
+        LOG_WARNING("Input json is nullptr !");
+    }
     return JSON_TYPE_NAME[j->type];
 }
 
 // free json
-void FreeJSON(JSON *j){
-    if(j==nullptr){
-        RaiseWarning("FreeJSON", "Input json is nullptr !");
+void FreeJSON(JSON* j) {
+    if (j == nullptr) {
+        LOG_WARNING("Input json is nullptr !");
         return ;
     }
-    if(j->type == JSON_ARRAY){
-        JSON *temp = j;
+    if (j->type == JSON_ARRAY) {
+        JSON* temp = j;
         j = j->arrayPointer;
         JSON_Delete(temp);
-        while(j){
+        while (j) {
             temp = j;
             j = j->next;
             FreeJSON(temp);
         }
-    }
-    else if(j->type == JSON_OBJECT){
-        JSON *temp = j;
+    } else if (j->type == JSON_OBJECT) {
+        JSON* temp = j;
         j = j->objectPointer;
         JSON_Delete(temp);
-
-        while(j){
+        while (j) {
             temp = j;
             j = j->next;
             FreeJSON(temp);
         }
-    }
-    else{
+    } else{
         JSON_Delete(j);
     }
 }
 
 // show wheather have memory leak
-void ShowWheatherMemoryLeak(){
-    printf("Malloc: %d\nFree  : %d\nisOK: %s\n", malloc_num, free_num, (malloc_num==free_num)?"Yes":"No");
+void ShowWheatherMemoryLeak() {
+    printf("Malloc: %d\nFree  : %d\nisOK: %s\n", malloc_num, free_num,
+        (malloc_num == free_num) ? "Yes" : "No");
 }
 
+}; // namespace jsonlib

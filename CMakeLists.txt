@@ -1,12 +1,22 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.10.0)
+project(jsonlib)
 
-set(json_test_num 6)
+# jsonlib
+file(GLOB json_lib_srcs jsonlib/*.cpp jsonlib/*.h)
+add_library(jsonlib ${json_lib_srcs})
+target_include_directories(jsonlib
+	INTERFACE jsonlib
+)
 
-ADD_SUBDIRECTORY(jsonlib)
-ADD_SUBDIRECTORY(jsonlib_test_lib)
-ADD_SUBDIRECTORY(jsonlib_test_dll)
+# examples
+add_executable(parse_json example/parse_json.cpp)
+target_link_libraries(parse_json
+	PUBLIC jsonlib
+)
 
-make_directory(${CMAKE_BINARY_DIR}/test_jsons)
-foreach(id RANGE 1 ${json_test_num})
-	configure_file(${CMAKE_SOURCE_DIR}/test_jsons/test${id}.json ${CMAKE_BINARY_DIR}/test_jsons)
-endforeach(id)
+# test_datas
+make_directory(${CMAKE_BINARY_DIR}/test_datas)
+file(GLOB test_datas test_datas/*.json)
+foreach(test_data ${test_datas})
+	configure_file(${test_data} ${CMAKE_BINARY_DIR}/test_datas)
+endforeach(test_data)
