@@ -1,3 +1,7 @@
+// Use of this source code is governed by a BSD-style license.
+//
+// Author: Huchao Bi (bihuchao at qq dot com)
+
 #include <stdio.h>
 #include <string.h>
 #include "jsonlib.h"
